@@ -1,0 +1,57 @@
+#!/bin/bash
+
+set -e
+
+WORKDIR=$(pwd)
+BIOUNIT="monomer"
+
+# Processing options & parameters with getopts
+while getopts :d:u:s: opt
+do
+    case "$opt" in
+        d) WORKDIR=$OPTARG ;;
+        u) BIOUNIT=$OPTARG ;;
+	      s) SYSTEM=$OPTARG ;;
+        *) echo "Unknown option: $opt" ;;
+    esac
+done
+
+shift $[ $OPTIND - 1 ]
+for param in "$@"
+do
+    echo "Unknown parameter: $param"
+done
+
+cd $WORKDIR
+
+alias python="${HOME}/.local/anaconda3/envs/mdbot/bin/python"
+cp "${BASH_SOURCE%/*}/../share/assets/cgenff_charmm2gmx_py3_nx2.py" .
+
+if [ $BIOUNIT = "monomeric" ]
+then
+    python cgenff_charmm2gmx_py3_nx2.py LIG ${SYSTEM}_ligand_h.mol2 ${SYSTEM}_ligand_h.str charmm36-feb2021.ff
+    gmx editconf -f lig_ini.pdb -o lig.gro
+    mdbot make_cplx_struct -p ${SYSTEM}_protein_processed.gro -l lig.gro -o ${SYSTEM}_complex.gro
+    mv "topol.top" "~topol.top.1~"
+    mdbot add_lig_topol -i "~topol.top.1~" -o "topol.top"
+elif [ $BIOUNIT = "dimeric" ]
+then
+    python cgenff_charmm2gmx_py3_nx2.py LIG ${SYSTEM}_ligand_h.mol2 ${SYSTEM}_ligand_h.str charmm36-feb2021.ff
+    gmx editconf -f lig_ini.pdb -o lig.gro
+    python cgenff_charmm2gmx_py3_nx2.py EX1 ${SYSTEM}_extra1_h.mol2 ${SYSTEM}_extra1_h.str charmm36-feb2021.ff
+    gmx editconf -f ex1_ini.pdb -o ex1.gro
+    mdbot make_cplx_struct -p ${SYSTEM}_protein_processed.gro -l lig.gro --extra1 ex1.gro -o ${SYSTEM}_complex.gro
+    mv "topol.top" "~topol.top.1~"
+    mdbot add_lig_topol -i "~topol.top.1~" -o "topol.top" -u dimer
+elif [ $BIOUNIT = "trimeric" ]
+then
+    python cgenff_charmm2gmx_py3_nx2.py LIG ${SYSTEM}_ligand_h.mol2 ${SYSTEM}_ligand_h.str charmm36-feb2021.ff
+    gmx editconf -f lig_ini.pdb -o lig.gro
+    python cgenff_charmm2gmx_py3_nx2.py EX1 ${SYSTEM}_extra1_h.mol2 ${SYSTEM}_extra1_h.str charmm36-feb2021.ff
+    gmx editconf -f ex1_ini.pdb -o ex1.gro
+    python cgenff_charmm2gmx_py3_nx2.py EX2 ${SYSTEM}_extra2_h.mol2 ${SYSTEM}_extra2_h.str charmm36-feb2021.ff
+    gmx editconf -f ex2_ini.pdb -o ex2.gro
+    mdbot make_cplx_struct -p ${SYSTEM}_protein_processed.gro -l lig.gro --extra1 ex1.gro --extra2 ex2.gro -o ${SYSTEM}_complex.gro
+    mv "topol.top" "~topol.top.1~"
+    mdbot add_lig_topol -i "~topol.top.1~" -o "topol.top" -u trimer
+fi

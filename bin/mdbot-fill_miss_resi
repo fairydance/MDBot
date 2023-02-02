@@ -1,0 +1,28 @@
+#!/bin/bash
+
+set -e
+
+WORKDIR=$(pwd)
+
+# Processing options & parameters with getopts
+while getopts :f: opt
+do
+    case "$opt" in
+        f) PDBFILE=$OPTARG ;;
+        *) echo "Unknown option: $opt" ;;
+    esac
+done
+
+shift $[ $OPTIND - 1 ]
+for param in "$@"
+do
+    echo "Unknown parameter: $param"
+done
+
+cd $WORKDIR
+
+alias python="${HOME}/.local/anaconda3/envs/mdbot/bin/python"
+
+mdbot modeller_extract_sequence $PDBFILE
+mdbot alignment -p $PDBFILE -s ${PDBFILE%.pdb}.seq
+python generate_model.py

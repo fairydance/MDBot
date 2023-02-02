@@ -1,0 +1,35 @@
+#!/bin/bash
+
+set -e
+
+WORKDIR=$(pwd)
+
+# Processing options & parameters with getopts
+while getopts :d:s: opt
+do
+    case "$opt" in
+        d) WORKDIR=$OPTARG ;;
+        s) SYSTEM=$OPTARG ;;
+        *) echo "Unknown option: $opt" ;;
+    esac
+done
+
+shift $[ $OPTIND - 1 ]
+for param in "$@"
+do
+    echo "Unknown parameter: $param"
+done
+
+cd $WORKDIR
+
+cp -r "${BASH_SOURCE%/*}/../share/assets/force_fields/charmm36-feb2021.ff" .
+
+start=$(date +%s)
+
+printf '1\n1\n' | gmx pdb2gmx -f "${SYSTEM}_protein.pdb" -o "${SYSTEM}_protein.gro" -ignh
+
+end=$(date +%s)
+pass=$(echo "$end - $start" | bc)
+
+echo "Initialization complete. Congratulations!"
+awk -v t=$SECONDS 'BEGIN{printf "Elapsed Time (HH:MM:SS): %d:%02d:%02d\n", t/3600%24, t/60%60, t%60}'

@@ -1,0 +1,43 @@
+#!/usr/bin/env python
+import argparse
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Add Ligand Position Restraint")
+    parser.add_argument("-p", "--protein", type=str, default="protein.gro", help="protein structure file path")
+    parser.add_argument("-l", "--ligand", type=str, default="ligand.gro", help="ligand structure file path")
+    parser.add_argument("--extra1", type=str, default=None, help="extra1 structure file path")
+    parser.add_argument("--extra2", type=str, default=None, help="extra2 structure file path")
+    parser.add_argument("-o", "--output", type=str, default="complex.gro", help="output complex structure file path")
+    args = parser.parse_args()
+
+    with open(args.protein, "rt") as f_prot:
+        prot_struct = f_prot.readlines()
+
+    with open(args.ligand, "rt") as f_lig:
+        lig_struct = f_lig.readlines()
+
+    num_prot_atoms = int(prot_struct[1].strip())
+    num_lig_atoms = int(lig_struct[1].strip())
+
+    if not args.extra1 and not args.extra2:
+        num_cplx_atoms = num_prot_atoms + num_lig_atoms
+        cplx_struct = [prot_struct[0]] + [' ' + str(num_cplx_atoms) + '\n'] + prot_struct[2:-1] + lig_struct[2:-1] + [prot_struct[-1]]
+    elif args.extra1 and not args.extra2:
+        with open(args.extra1, "rt") as f_ex1:
+            ex1_struct = f_ex1.readlines()
+        num_ex1_atoms = int(ex1_struct[1].strip())
+        num_cplx_atoms = num_prot_atoms + num_lig_atoms + num_ex1_atoms
+        cplx_struct = [prot_struct[0]] + [' ' + str(num_cplx_atoms) + '\n'] + prot_struct[2:-1] + lig_struct[2:-1] + ex1_struct[2:-1] + [prot_struct[-1]]
+    elif args.extra1 and args.extra2:
+        with open(args.extra1, "rt") as f_ex1:
+            ex1_struct = f_ex1.readlines()
+        num_ex1_atoms = int(ex1_struct[1].strip())
+        with open(args.extra2, "rt") as f_ex2:
+            ex2_struct = f_ex2.readlines()
+        num_ex2_atoms = int(ex2_struct[1].strip())
+        num_cplx_atoms = num_prot_atoms + num_lig_atoms + num_ex1_atoms + num_ex2_atoms
+        cplx_struct = [prot_struct[0]] + [' ' + str(num_cplx_atoms) + '\n'] + prot_struct[2:-1] + lig_struct[2:-1] + ex1_struct[2:-1] + ex2_struct[2:-1] + [prot_struct[-1]]
+
+    with open(args.output, "wt") as f_out:
+        for line in cplx_struct:
+            f_out.write(line)

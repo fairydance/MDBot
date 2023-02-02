@@ -1,0 +1,39 @@
+#!/bin/bash
+
+set -e
+
+WORKDIR=$(pwd)
+BIOUNIT="monomeric"
+
+# Processing options & parameters with getopts
+while getopts :d:u:s: opt
+do
+    case "$opt" in
+        d) WORKDIR=$OPTARG ;;
+        u) BIOUNIT=$OPTARG ;;
+	      s) SYSTEM=$OPTARG ;;
+        *) echo "Unknown option: $opt" ;;
+    esac
+done
+
+shift $[ $OPTIND - 1 ]
+for param in "$@"
+do
+    echo "Unknown parameter: $param"
+done
+
+cd $WORKDIR
+
+if [ $BIOUNIT = "monomeric" ]
+then
+    cp "${BASH_SOURCE%/*}/../share/assets/md_parameters/npt.mdp" .
+elif [ $BIOUNIT = "dimeric" ]
+then
+    cp "${BASH_SOURCE%/*}/../share/assets/md_parameters/npt_di.mdp" "npt.mdp"
+elif [ $BIOUNIT = "trimeric" ]
+then
+    cp "${BASH_SOURCE%/*}/../share/assets/md_parameters/npt_tri.mdp" "npt.mdp"
+fi
+
+gmx grompp -f npt.mdp -c nvt.gro -t nvt.cpt -r nvt.gro -p topol.top -n index.ndx -o npt.tpr
+gmx mdrun -deffnm npt

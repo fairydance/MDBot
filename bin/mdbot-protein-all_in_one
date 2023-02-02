@@ -1,0 +1,30 @@
+#!/bin/bash
+
+set -e
+
+WORKDIR=$(pwd)
+
+# Processing options & parameters with getopts
+while getopts :d:s: opt
+do
+    case "$opt" in
+        d) WORKDIR=$OPTARG ;;
+        s) SYSTEM=$OPTARG ;;
+        *) echo "Unknown option: $opt" ;;
+    esac
+done
+
+shift $[ $OPTIND - 1 ]
+for param in "$@"
+do
+    echo "Unknown parameter: $param"
+done
+
+cd $WORKDIR
+
+mdbot protein init -s $SYSTEM
+mdbot protein cell_solv_ions -s $SYSTEM
+mdbot protein em -s $SYSTEM
+mdbot protein nvt_equi
+mdbot protein npt_equi
+mdbot protein prod_md

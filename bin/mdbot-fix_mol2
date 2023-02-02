@@ -1,0 +1,51 @@
+#!/usr/bin/env python
+import os, re
+import time
+import datetime
+import argparse
+from biopandas.mol2 import PandasMol2
+
+def fix_mol2_file(raw_path, processed_path):
+    pmol = PandasMol2().read_mol2(raw_path)
+    pmol.df["subst_id"] = 1
+    pmol.df["subst_name"] = "LIG" # pmol.df["subst_name"][0][:3]
+    
+    for at in ['H', 'C', 'N', 'O', 'F', 'P', 'S', 'Cl', 'Br', 'I']:
+        count = 1
+        for i, row in pmol.df.iterrows():
+            if row["atom_type"].split('.')[0] == at:
+                pmol.df.loc[i, "atom_name"] = at + str(count)
+                count += 1
+    
+    headerRegex = re.compile(r"@<TRIPOS>MOLECULE\n.*@<TRIPOS>ATOM\n", re.DOTALL)
+    headerMo = headerRegex.search(pmol.mol2_text)
+    header = headerMo.group()
+    headerRegex = re.compile(r"@<TRIPOS>MOLECULE\n(.*?)\n")
+    #header = headerRegex.sub("@<TRIPOS>MOLECULE\n" + pmol.df["subst_name"][0] + '\n', header)
+    header = headerRegex.sub("@<TRIPOS>MOLECULE\nLIG\n", header)
+    
+    footerRegex = re.compile(r"@<TRIPOS>BOND\n.*\n", re.DOTALL)
+    footerMo = footerRegex.search(pmol.mol2_text)
+    footer = footerMo.group()
+    
+    with open(processed_path, "wt") as f:
+        f.write(header)
+        for i, row in pmol.df.iterrows():
+            f.write("{0:>6} {1:<6} {2:>9.4f} {3:>9.4f} {4:>9.4f} {5:<5} {6:>3} {7:<6} {8:>9.4f}\n".format(*list(row)))
+        f.write(footer)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Fix Problems in Mol2 Files")
+    parser.add_argument("-f", "--file", dest="raw_path", type=str, help="A mol2 file that need to be fixed")
+    parser.add_argument("-o", "--output", dest="processed_path", type=str, help="Output destination for the fixed mol2 file")
+    args = parser.parse_args()
+
+    start = time.time()
+
+    fix_mol2_file(args.raw_path, args.processed_path)
+
+    end = time.time()
+    elapsed = end - start
+
+    print("Mol2 fix complete. Congratulations!")
+    print(f"Elapsed Time (HH:MM:SS): {datetime.timedelta(seconds=elapsed)}")

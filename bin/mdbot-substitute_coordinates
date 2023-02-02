@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+import argparse
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Substitute coordinates in *.mol2 with coordinates in *.pdb")
+    parser.add_argument("--mol2", type=str, help="mol2 file with original coordinates")
+    parser.add_argument("--pdb", type=str, help="pdb file supplying new coordinates")
+    parser.add_argument("--out", type=str, help="output file")
+    args = parser.parse_args()
+
+    new_coords = []
+    with open(args.pdb, "rt") as f:
+        for line in f:
+            if line.startswith("HETATM"):
+                new_coords.append([line[30:38].strip(), line[38:46].strip(), line[46:54].strip()])
+    
+    with open(args.mol2, "rt") as f_in, open(args.out, "wt") as f_out:
+        ATOM = False
+        for line in f_in:
+            if line.startswith("@<TRIPOS>BOND") or (ATOM and line == '\n'):
+                ATOM = False
+            if ATOM:
+                line = line.split()
+                line[2], line[3], line[4] = new_coords[i][0], new_coords[i][1], new_coords[i][2]
+                line = ' '.join(line) + '\n'
+                i += 1
+            if line.startswith("@<TRIPOS>ATOM"):
+                ATOM = True
+                i = 0
+            f_out.write(line)

@@ -1,0 +1,84 @@
+#!/bin/bash
+
+set -e
+
+WORKDIR=$(pwd)
+BIOUNIT="monomeric"
+FILL_MISS_RESI="false"
+
+# Processing options & parameters with getopts
+while getopts :d:u:s:l:f opt
+do
+    case "$opt" in
+        d) WORKDIR=$OPTARG ;;
+        u) BIOUNIT=$OPTARG ;;
+	      s) SYSTEM=$OPTARG ;;
+        l) LIGAND=$OPTARG ;;
+        f) FILL_MISS_RESI="true" ;;
+        *) echo "Unknown option: $opt" ;;
+    esac
+done
+
+shift $[ $OPTIND - 1 ]
+for param in "$@"
+do
+    echo "Unknown parameter: $param"
+done
+
+cd $WORKDIR
+
+if [ $BIOUNIT = "monomeric" ]
+then
+    cp "${BASH_SOURCE%/*}/../share/assets/structures/raw/bioasbls/${SYSTEM}.pdb" .
+    cp "${BASH_SOURCE%/*}/../share/assets/sort_mol2_bonds.pl" .
+    grep -E '^HET|^ANISOU' "${SYSTEM}.pdb" > "tmp.pdb"
+    grep -E -v '^HET|^ANISOU' "${SYSTEM}.pdb" > "${SYSTEM}_protein_clean.pdb"
+    cp -r "${BASH_SOURCE%/*}/../share/assets/force_fields/charmm36-feb2021.ff" .
+    printf '1\n1\n' | gmx pdb2gmx -f "${SYSTEM}_protein_clean.pdb" -o "${SYSTEM}_protein_processed.gro" -ignh
+    if [ $LIGAND ]
+    then
+        grep $LIGAND "${SYSTEM}.pdb" > "${SYSTEM}_ligand_tmp.pdb"
+        grep -v '^ANISOU' "${SYSTEM}_ligand_tmp.pdb" > "${SYSTEM}_ligand.pdb"
+        rm "${SYSTEM}_ligand_tmp.pdb"
+        obabel "${SYSTEM}_ligand.pdb" -O "${SYSTEM}_ligand_tmp.mol2" -h
+        mdbot fix_mol2 -f "${SYSTEM}_ligand_tmp.mol2" -o "${SYSTEM}_ligand_mn.mol2"
+        perl sort_mol2_bonds.pl "${SYSTEM}_ligand_mn.mol2" "${SYSTEM}_ligand_h.mol2"
+    fi
+elif [ $BIOUNIT = "dimeric" ]
+then
+    cp "${BASH_SOURCE%/*}/../share/assets/structures/raw/bioasbls/${SYSTEM}.pdb" .
+    cp "${BASH_SOURCE%/*}/../share/assets/sort_mol2_bonds.pl" .
+    grep -E '^HET|^ANISOU' "${SYSTEM}.pdb" > "tmp.pdb"
+    grep -E -v '^HET|^ANISOU' "${SYSTEM}.pdb" > "${SYSTEM}_protein_clean.pdb"
+    cp -r "${BASH_SOURCE%/*}/../share/assets/force_fields/charmm36-feb2021.ff" .
+    mv "${SYSTEM}_protein_clean.pdb" "${SYSTEM}_protein_clean_tmp.pdb"
+    grep -v -E 'MODEL|ENDMDL' "${SYSTEM}_protein_clean_tmp.pdb" > "${SYSTEM}_protein_clean.pdb"
+    rm "${SYSTEM}_protein_clean_tmp.pdb"
+    printf '1\n1\n' | gmx pdb2gmx -f "${SYSTEM}_protein_clean.pdb" -o "${SYSTEM}_protein_processed.gro" -ignh
+    if [ $LIGAND ]
+    then
+        grep $LIGAND "${SYSTEM}.pdb" > "${SYSTEM}_ligand_tmp.pdb"
+        grep -v '^ANISOU' "${SYSTEM}_ligand_tmp.pdb" > "${SYSTEM}_ligand.pdb"
+        rm "${SYSTEM}_ligand_tmp.pdb"
+        mdbot split_two_same_ligands --pdb "${SYSTEM}_ligand.pdb"
+        obabel "${SYSTEM}_ligand.pdb" -O "${SYSTEM}_ligand_tmp.mol2" -h
+        mdbot fix_mol2 -f "${SYSTEM}_ligand_tmp.mol2" -o "${SYSTEM}_ligand_mn.mol2"
+        perl sort_mol2_bonds.pl "${SYSTEM}_ligand_mn.mol2" "${SYSTEM}_ligand_h.mol2"
+        obabel "${SYSTEM}_extra1.pdb" -O "${SYSTEM}_extra1_tmp.mol2" -h
+        mdbot fix_mol2 -f "${SYSTEM}_extra1_tmp.mol2" -o "${SYSTEM}_extra1_mn.mol2"
+        perl sort_mol2_bonds.pl "${SYSTEM}_extra1_mn.mol2" "${SYSTEM}_extra1_h.mol2"
+    fi
+elif [ $BIOUNIT = "dimeric-ligand" ]
+then
+    grep $LIGAND "${SYSTEM}.pdb" > "${SYSTEM}_ligand_tmp.pdb"
+    grep -v '^ANISOU' "${SYSTEM}_ligand_tmp.pdb" > "${SYSTEM}_ligand.pdb"
+    rm "${SYSTEM}_ligand_tmp.pdb"
+    mdbot split_two_same_ligands --pdb "${SYSTEM}_ligand.pdb"
+    obabel "${SYSTEM}_ligand.pdb" -O "${SYSTEM}_ligand_tmp.mol2" -h
+    mdbot fix_mol2 -f "${SYSTEM}_ligand_tmp.mol2" -o "${SYSTEM}_ligand_mn.mol2"
+    perl sort_mol2_bonds.pl "${SYSTEM}_ligand_mn.mol2" "${SYSTEM}_ligand_h.mol2"
+    obabel "${SYSTEM}_extra1.pdb" -O "${SYSTEM}_extra1_tmp.mol2" -h 
+    mdbot fix_mol2 -f "${SYSTEM}_extra1_tmp.mol2" -o "${SYSTEM}_extra1_mn.mol2"
+    perl sort_mol2_bonds.pl "${SYSTEM}_extra1_mn.mol2" "${SYSTEM}_extra1_h.mol2"
+fi
+

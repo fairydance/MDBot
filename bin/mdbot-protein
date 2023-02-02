@@ -1,0 +1,4 @@
+#!/bin/bash
+
+task=$1; shift
+${BASH_SOURCE%/*}/mdbot-protein-$task $*

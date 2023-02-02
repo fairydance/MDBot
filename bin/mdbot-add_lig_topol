@@ -1,0 +1,81 @@
+#!/usr/bin/env python
+import argparse
+
+LIG_PARAMETER_TXT = '''
+; Include ligand parameters
+#include "lig.prm"
+'''
+
+LIG_TOPOLOGY_TXT = '''
+; Include ligand topology
+#include "lig.itp"
+'''
+
+LIG_EX1_TOPOLOGY_TXT = '''
+; Include ligand topology
+#include "lig.itp"
+
+; Include extra1 topology
+#include "ex1.itp"
+'''
+
+LIG_EX1_EX2_TOPOLOGY_TXT = '''
+; Include ligand topology
+#include "lig.itp"
+
+; Include extra1 topology
+#include "ex1.itp"
+
+; Include extra2 topology
+#include "ex2.itp"
+'''
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Add Ligand Topology")
+    parser.add_argument("-i", "--input", type=str, default="topol.top", help="input file path")
+    parser.add_argument("-o", "--output", type=str, default="topol_ltp.top", help="output file path")
+    parser.add_argument("-u", "--biounit", type=str, default="monomer", help="biological unit")
+    args = parser.parse_args()
+
+    if args.biounit == "monomer":
+        hit_posre = False; hit_topology = 0
+        with open(args.input, "rt") as f_in, open(args.output, "wt") as f_out:
+            for line in f_in:
+                f_out.write(line)
+                if line == '#include "./charmm36-feb2021.ff/forcefield.itp"\n':
+                    f_out.write(LIG_PARAMETER_TXT)
+                if line == '#include "posre.itp"\n':
+                    hit_posre = True
+                    continue
+                if hit_posre:
+                    f_out.write(LIG_TOPOLOGY_TXT)
+                    hit_posre = False
+                if line.startswith('#include "topol_Protein_chain_') and line.endswith('.itp"\n'):
+                    hit_topology += 1
+                    if hit_topology == 2:
+                        f_out.write(LIG_TOPOLOGY_TXT)
+            f_out.write('LIG                 1\n')
+    elif args.biounit == "dimer":
+        hit_topology = 0
+        with open(args.input, "rt") as f_in, open(args.output, "wt") as f_out:
+            for line in f_in:
+                f_out.write(line)
+                if line == '#include "./charmm36-feb2021.ff/forcefield.itp"\n':
+                    f_out.write(LIG_PARAMETER_TXT)
+                if line.startswith('#include "topol_Protein_chain_') and line.endswith('.itp"\n'):
+                    hit_topology += 1
+                    if hit_topology == 2:
+                        f_out.write(LIG_EX1_TOPOLOGY_TXT)
+            f_out.write('LIG                 1\nEX1                 1\n')
+    elif args.biounit == "trimer":
+        hit_topology = 0
+        with open(args.input, "rt") as f_in, open(args.output, "wt") as f_out:
+            for line in f_in:
+                f_out.write(line)
+                if line == '#include "./charmm36-feb2021.ff/forcefield.itp"\n':
+                    f_out.write(LIG_PARAMETER_TXT)
+                if line.startswith('#include "topol_Protein_chain_') and line.endswith('.itp"\n'):
+                    hit_topology += 1
+                    if hit_topology == 2:
+                        f_out.write(LIG_EX1_EX2_TOPOLOGY_TXT)
+            f_out.write('LIG                 1\nEX1                 1\nEX2                 1\n')

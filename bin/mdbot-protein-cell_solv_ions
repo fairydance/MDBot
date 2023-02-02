@@ -1,0 +1,37 @@
+#!/bin/bash
+
+set -e
+
+WORKDIR=$(pwd)
+
+# Processing options & parameters with getopts
+while getopts :d:s: opt
+do
+    case "$opt" in
+        d) WORKDIR=$OPTARG ;;
+        s) SYSTEM=$OPTARG ;;
+        *) echo "Unknown option: $opt" ;;
+    esac
+done
+
+shift $[ $OPTIND - 1 ]
+for param in "$@"
+do
+    echo "Unknown parameter: $param"
+done
+
+cd $WORKDIR
+
+start=$(date +%s)
+
+gmx editconf -f "${SYSTEM}_protein.gro" -o "${SYSTEM}_newbox.gro" -bt dodecahedron -d 1.0
+gmx solvate -cp "${SYSTEM}_newbox.gro" -cs spc216.gro -p topol.top -o "${SYSTEM}_solv.gro"
+cp "${BASH_SOURCE%/*}/../share/assets/md_parameters/ions.mdp" .
+gmx grompp -f ions.mdp -c "${SYSTEM}_solv.gro" -p topol.top -o ions.tpr
+printf 'SOL\n' | gmx genion -s ions.tpr -o "${SYSTEM}_solv_ions.gro" -p topol.top -conc 0.15 -pname NA -nname CL -neutral
+
+end=$(date +%s)
+pass=$(echo "$end - $start" | bc)
+
+echo "System building complete. Congratulations!"
+awk -v t=$SECONDS 'BEGIN{printf "Elapsed Time (HH:MM:SS): %d:%02d:%02d\n", t/3600%24, t/60%60, t%60}'

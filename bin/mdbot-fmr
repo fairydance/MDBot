@@ -1,0 +1,29 @@
+#!/bin/bash
+
+set -e
+
+WORKDIR=$(pwd)
+
+# Processing options & parameters with getopts
+while getopts :s: opt
+do
+    case "$opt" in
+        s) SYSTEM=$OPTARG ;;
+        *) echo "Unknown option: $opt" ;;
+    esac
+done
+
+shift $[ $OPTIND - 1 ]
+for param in "$@"
+do
+    echo "Unknown parameter: $param"
+done
+
+FMRDIR="${WORKDIR}/../../../factory/fill_miss_resi/${SYSTEM}"
+PDBFILE="${SYSTEM}_protein_clean.pdb"
+
+mkdir -p $FMRDIR
+cd $FMRDIR
+cp "${WORKDIR}/${PDBFILE}" .
+mdbot fill_miss_resi -f $PDBFILE
+cp "${SYSTEM}_protein_clean_fill.B99990001.pdb" "${WORKDIR}/${SYSTEM}_protein_modeller_fix.pdb"

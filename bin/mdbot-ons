@@ -1,0 +1,32 @@
+#!/bin/bash
+
+set -e
+
+WORKDIR=$(pwd)
+
+MOLNAME="ligand"
+
+# Processing options & parameters with getopts
+while getopts :d:f:n: opt
+do
+    case "$opt" in
+        d) WORKDIR=$OPTARG ;;
+        f) LIGFILE=$OPTARG ;;
+        n) MOLNAME=$OPTARG ;;
+        *) echo "Unknown option: $opt" ;;
+    esac
+done
+
+shift $[ $OPTIND - 1 ]
+for param in "$@"
+do
+    echo "Unknown parameter: $param"
+done
+
+SYSTEM=${LIGFILE:0:4}
+
+cd $WORKDIR
+
+obabel "${LIGFILE}" -O "${SYSTEM}_${MOLNAME}_tmp.mol2" -h
+mdbot fix_mol2 -f "${SYSTEM}_${MOLNAME}_tmp.mol2" -o "${SYSTEM}_${MOLNAME}_mn.mol2"
+perl sort_mol2_bonds.pl "${SYSTEM}_${MOLNAME}_mn.mol2" "${SYSTEM}_${MOLNAME}_h.mol2"

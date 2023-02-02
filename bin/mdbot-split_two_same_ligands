@@ -1,0 +1,24 @@
+#!/usr/bin/env python
+import argparse
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Split two same ligands in *.pdb")
+    parser.add_argument("--pdb", type=str, help="ligand pdb file")
+    args = parser.parse_args()
+
+    header, hetatm = [], []
+    with open(args.pdb, "rt") as f:
+        for line in f:
+            if line.startswith("HETATM"):
+                hetatm.append(line)
+            else:
+                header.append(line)
+    
+    assert (len(hetatm) % 2) == 0, "The number of HETATM lines is odd."
+
+    k = len(hetatm)//2
+    with open(args.pdb, "wt") as f:
+        f.write(''.join(header + hetatm[:k]))
+        ATOM = False
+    with open(args.pdb.replace("ligand", "extra1"), "wt") as f:
+        f.write(''.join(header + hetatm[k:]))

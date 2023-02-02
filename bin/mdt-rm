@@ -1,0 +1,6 @@
+#!/bin/bash
+
+set -e
+
+rm gmx_md_0_10.out gmx_md_0_10.err md_0_10.edr md_0_10.gro md_0_10.log md_0_10.cpt md_0_10_prev.cpt md_0_10.trr md_0_10.tpr mdout.mdp gmx_npt_equi.err gmx_npt_equi.out npt.cpt npt.edr npt.gro npt.log npt_prev.cpt npt.xtc npt.tpr gmx_nvt_equi.out gmx_nvt_equi.err nvt.cpt nvt.edr nvt.gro nvt.log nvt_prev.cpt nvt.xtc nvt.tpr index.ndx topol.top posre_*.itp index_*.ndx em.gro em.log em.edr em.trr em.tpr *_solv_ions.gro ions.tpr '#topol.top.2#' *_solv.gro *_newbox.gro '#topol.top.1#' *_complex.gro *_protein.gro posre.itp *_protein.pdb
+

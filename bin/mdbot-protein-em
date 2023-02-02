@@ -1,0 +1,36 @@
+#!/bin/bash
+
+set -e
+
+WORKDIR=$(pwd)
+
+# Processing options & parameters with getopts
+while getopts :d:s: opt
+do
+    case "$opt" in
+        d) WORKDIR=$OPTARG ;;
+        s) SYSTEM=$OPTARG ;;
+        *) echo "Unknown option: $opt" ;;
+    esac
+done
+
+shift $[ $OPTIND - 1 ]
+for param in "$@"
+do
+    echo "Unknown parameter: $param"
+done
+
+cd $WORKDIR
+
+cp "${BASH_SOURCE%/*}/../share/assets/md_parameters/em.mdp" .
+gmx grompp -f em.mdp -c "${SYSTEM}_solv_ions.gro" -p topol.top -o em.tpr
+
+start=$(date +%s)
+
+gmx mdrun -deffnm em
+
+end=$(date +%s)
+pass=$(echo "$end - $start" | bc)
+
+echo "Energy minimization complete. Congratulations!"
+awk -v t=$SECONDS 'BEGIN{printf "Elapsed Time (HH:MM:SS): %d:%02d:%02d\n", t/3600%24, t/60%60, t%60}'

@@ -1,0 +1,127 @@
+#!/usr/bin/env python
+import argparse
+import time, datetime
+from Bio import SeqIO
+
+generate_model_script_template = '''from modeller import *
+from modeller.automodel import *    # Load the AutoModel class
+
+log.verbose()
+env = Environ()
+
+# directories for input atom files
+env.io.atom_files_directory = ['.', '../atom_files']
+
+class MyModel(AutoModel):
+    def select_atoms(self):
+        return Selection({{ RESIDUE_RANGES }})
+
+a = MyModel(env, alnfile = 'alignment.ali',
+            knowns = '{{ KNOWNS }}', sequence = '{{ SEQUENCE }}')
+a.starting_model= 1
+a.ending_model  = 1 
+
+a.make()'''
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Alignment for Filling Missing Residues")
+    parser.add_argument("-p", "--pdb", type=str, help="protein structure file path (.pdb)")
+    parser.add_argument("-s", "--seq", type=str, help="file path of the sequence extracted by MODELLER (.seq)")
+    parser.add_argument('-v', "--verbose", action='store_true', help='verbose mode')
+
+    args = parser.parse_args()
+
+    start = time.time()
+
+    pdb_atom_records, pdb_seqres_records = [], []
+    for record in SeqIO.parse(args.pdb, "pdb-atom"):
+        pdb_atom_records.append(record)
+    for record in SeqIO.parse(args.pdb, "pdb-seqres"):
+        pdb_seqres_records.append(record)
+
+    seq_atoms, seq_seqress = [], []
+    num_chain = len(pdb_atom_records)
+    print(f"There are {num_chain} chains in the structure.")
+    for i in range(num_chain):
+        print(f"\nChain {pdb_atom_records[i].id[-1]}:")
+        seq_atom = str(pdb_atom_records[i].seq)
+        seq_atom = seq_atom.replace('X', '-')
+        #seq_atom = seq_atom.replace("TT--YADFI-------------------------------------------------ASG--------RTGR------------------------------------------------------------------------------------------------------------------------------------RN--------------------------------AIH----------------------D", "TTYADFIASGRTGRRNAIHD")
+        seq_atoms.append(seq_atom)
+        print(">Sequence in ATOM record")
+        print(seq_atom)
+        seq_seqres = str(pdb_seqres_records[i].seq)
+        cutoff = slice(seq_seqres.find(seq_atom[:5]), seq_seqres.find(seq_atom[-5:]) + 5)
+        seq_seqres = seq_seqres[cutoff]
+        seq_seqress.append(seq_seqres)
+        print(">Sequence in SEQRES record")
+        print(seq_seqres)
+        assert len(seq_atom) == len(seq_seqres), "Sequence length in ATOM record and SEQRES record is not equal."
+    print()
+
+    #seq_atoms = list(reversed(seq_atoms))
+    #seq_seqress = list(reversed(seq_seqress))
+
+    if args.seq:
+        mdlr_seq_lines = []
+        with open(args.seq, 'rt') as f:
+            read_status = False
+            for line in f:
+                if line.startswith('>'):
+                    read_status = True
+                if read_status:
+                    mdlr_seq_lines.append(line)
+
+        seq_mdlr = ''.join([seq.strip() for seq in mdlr_seq_lines[2:]])[:-1]
+        assert '/'.join([seq_atom.replace('-', '') for seq_atom in seq_atoms]) == seq_mdlr, "Sequence extracted by Biopython does not coincide with MODELLER."
+
+        alignment_file_path = "alignment.ali"
+        with open(alignment_file_path, 'wt') as f:
+            f.write(''.join(mdlr_seq_lines[:2]))
+            seq_atom_star = '/'.join(seq_atoms) + '*'
+            for i in range(len(seq_atom_star) // 75):
+                f.write(seq_atom_star[i * 75:(i + 1) * 75] + '\n')
+            f.write(seq_atom_star[-(len(seq_atom_star) % 75):] + '\n')
+            f.write(mdlr_seq_lines[0].strip('\n') + "_fill\n")
+            f.write("sequence:::::::::\n")
+            seq_seqres_star = '/'.join(seq_seqress) + '*'
+            for i in range(len(seq_seqres_star) // 75):
+                f.write(seq_seqres_star[i * 75:(i + 1) * 75] + '\n')
+            f.write(seq_seqres_star[-(len(seq_seqres_star) % 75):])
+
+        residue_ranges = []
+        i, pre_char = 0, None
+        for c, seq_atom in enumerate(seq_atoms):
+            chain_id = chr(65 + c)
+            for char in seq_atom:
+                if char == '-':
+                    if pre_char != '-':
+                        residue_range = [i + 1, i + 1]
+                    elif i + 1 == len(seq_atoms[0]):
+                        residue_range[0] = str(residue_range[0]) + ':' + chain_id
+                        residue_range[1] = str(i + 1) + ':' + chain_id
+                        residue_ranges.append(residue_range)
+                else:
+                    if pre_char == '-':
+                        residue_range[0] = str(residue_range[0]) + ':' + chain_id
+                        residue_range[1] = str(i) + ':' + chain_id
+                        residue_ranges.append(residue_range)
+                pre_char = char
+                i += 1
+
+        residue_ranges_str = ', '.join([f"self.residue_range('{residue_range[0]}', '{residue_range[1]}')" for residue_range in residue_ranges])
+
+        generate_model_script = generate_model_script_template.replace("{{ RESIDUE_RANGES }}", residue_ranges_str)
+        generate_model_script = generate_model_script.replace("{{ KNOWNS }}", mdlr_seq_lines[0][4:].strip('\n'))
+        generate_model_script = generate_model_script.replace("{{ SEQUENCE }}", mdlr_seq_lines[0][4:].strip('\n') + "_fill")
+
+        generate_file_path = "generate_model.py"
+        with open(generate_file_path, 'wt') as f:
+            f.write(generate_model_script)
+
+    end = time.time()
+    elapsed = end - start
+
+    if args.verbose:
+        print("Alignment complete. Congratulations!")
+        print(f"Elapsed Time (HH:MM:SS): {datetime.timedelta(seconds=elapsed)}")

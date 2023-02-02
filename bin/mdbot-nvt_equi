@@ -1,0 +1,64 @@
+#!/bin/bash
+
+set -e
+
+WORKDIR=$(pwd)
+
+BIOUNIT="monomeric"
+
+# Processing options & parameters with getopts
+while getopts :d:u:s: opt
+do
+    case "$opt" in
+        d) WORKDIR=$OPTARG ;;
+        u) BIOUNIT=$OPTARG ;;
+	      s) SYSTEM=$OPTARG ;;
+        *) echo "Unknown option: $opt" ;;
+    esac
+done
+
+shift $[ $OPTIND - 1 ]
+for param in "$@"
+do
+    echo "Unknown parameter: $param"
+done
+
+cd $WORKDIR
+
+if [ $BIOUNIT = "monomeric" ]
+then
+    printf '0 & ! a H*\nq\n' | gmx make_ndx -f lig.gro -o index_lig.ndx
+    printf '3\n' | gmx genrestr -f lig.gro -n index_lig.ndx -o posre_lig.itp -fc 1000 1000 1000
+    mv 'topol.top' '~topol.top.2~'
+    mdbot add_lig_posre -i '~topol.top.2~' -o 'topol.top'
+    printf '1 | 13\nq\n' | gmx make_ndx -f em.gro -o index.ndx
+    cp "${BASH_SOURCE%/*}/../share/assets/md_parameters/nvt.mdp" .
+    gmx grompp -f nvt.mdp -c em.gro -r em.gro -p topol.top -n index.ndx -o nvt.tpr
+    gmx mdrun -deffnm nvt
+elif [ $BIOUNIT = "dimeric" ]
+then
+    printf '0 & ! a H*\nq\n' | gmx make_ndx -f lig.gro -o index_lig.ndx
+    printf '3\n' | gmx genrestr -f lig.gro -n index_lig.ndx -o posre_lig.itp -fc 1000 1000 1000
+    printf '0 & ! a H*\nq\n' | gmx make_ndx -f ex1.gro -o index_ex1.ndx
+    printf '3\n' | gmx genrestr -f ex1.gro -n index_ex1.ndx -o posre_ex1.itp -fc 1000 1000 1000
+    mv 'topol.top' '~topol.top.2~'
+    mdbot add_lig_posre -i '~topol.top.2~' -o 'topol.top' -u dimer
+    printf '1 | 13 | 14\nq\n' | gmx make_ndx -f em.gro -o index.ndx
+    cp "${BASH_SOURCE%/*}/../share/assets/md_parameters/nvt_di.mdp" "nvt.mdp"
+    gmx grompp -f nvt.mdp -c em.gro -r em.gro -p topol.top -n index.ndx -o nvt.tpr
+    gmx mdrun -deffnm nvt
+elif [ $BIOUNIT = "trimeric" ]
+then
+    printf '0 & ! a H*\nq\n' | gmx make_ndx -f lig.gro -o index_lig.ndx
+    printf '3\n' | gmx genrestr -f lig.gro -n index_lig.ndx -o posre_lig.itp -fc 1000 1000 1000
+    printf '0 & ! a H*\nq\n' | gmx make_ndx -f ex1.gro -o index_ex1.ndx
+    printf '3\n' | gmx genrestr -f ex1.gro -n index_ex1.ndx -o posre_ex1.itp -fc 1000 1000 1000
+    printf '0 & ! a H*\nq\n' | gmx make_ndx -f ex2.gro -o index_ex2.ndx
+    printf '3\n' | gmx genrestr -f ex2.gro -n index_ex2.ndx -o posre_ex2.itp -fc 1000 1000 1000
+    mv 'topol.top' '~topol.top.2~'
+    mdbot add_lig_posre -i '~topol.top.2~' -o 'topol.top' -u trimer
+    printf '1 | 13 | 14 | 15\nq\n' | gmx make_ndx -f em.gro -o index.ndx
+    cp "${BASH_SOURCE%/*}/../share/assets/md_parameters/nvt_tri.mdp" "nvt.mdp"
+    gmx grompp -f nvt.mdp -c em.gro -r em.gro -p topol.top -n index.ndx -o nvt.tpr
+    gmx mdrun -deffnm nvt
+fi

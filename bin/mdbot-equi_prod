@@ -1,0 +1,41 @@
+#!/bin/bash
+
+set -e
+
+WORKDIR=$(pwd)
+BIOUNIT="monomeric"
+
+# Processing options & parameters with getopts
+while getopts :d:u:s: opt
+do
+    case "$opt" in
+        d) WORKDIR=$OPTARG ;;
+        u) BIOUNIT=$OPTARG ;;
+	    s) SYSTEM=$OPTARG ;;
+        *) echo "Unknown option: $opt" ;;
+    esac
+done
+
+shift $[ $OPTIND - 1 ]
+for param in "$@"
+do
+    echo "Unknown parameter: $param"
+done
+
+cd $WORKDIR
+
+mdbot nvt_equi -u $BIOUNIT -s $SYSTEM
+sleep 1
+PREPOUTLOGEND=$(head -1 gmx_nvt_equi.out)
+while [ $PREPOUTLOGEND != "NVT equilibration complete. Congratulations!" ]
+do
+    sleep 1
+done
+mdbot npt_equi -u $BIOUNIT -s $SYSTEM
+sleep 1
+PREPOUTLOGEND=$(head -1 gmx_npt_equi.out)
+while [ $PREPOUTLOGEND != "NPT equilibration complete. Congratulations!" ]
+do
+    sleep 1
+done
+mdbot prod_md -u $BIOUNIT -s $SYSTEM

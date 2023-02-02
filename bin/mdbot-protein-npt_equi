@@ -1,0 +1,36 @@
+#!/bin/bash
+
+set -e
+
+WORKDIR=$(pwd)
+
+# Processing options & parameters with getopts
+while getopts :d:s: opt
+do
+    case "$opt" in
+        d) WORKDIR=$OPTARG ;;
+        s) SYSTEM=$OPTARG ;;
+        *) echo "Unknown option: $opt" ;;
+    esac
+done
+
+shift $[ $OPTIND - 1 ]
+for param in "$@"
+do
+    echo "Unknown parameter: $param"
+done
+
+cd $WORKDIR
+
+cp "${BASH_SOURCE%/*}/../share/assets/md_parameters/npt_prot.mdp" npt.mdp
+gmx grompp -f npt.mdp -c nvt.gro -t nvt.cpt -r nvt.gro -p topol.top -n index.ndx -o npt.tpr
+
+start=$(date +%s)
+
+gmx mdrun -deffnm npt
+
+end=$(date +%s)
+pass=$(echo "$end - $start" | bc)
+
+echo "NPT equilibration complete. Congratulations!"
+awk -v t=$SECONDS 'BEGIN{printf "Elapsed Time (HH:MM:SS): %d:%02d:%02d\n", t/3600%24, t/60%60, t%60}'
