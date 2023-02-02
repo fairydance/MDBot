@@ -3,8 +3,8 @@
 **MDBot**, as its name suggests, is a delicate program designed for automating the molecular dynamics simulation workflow. It preserves the commands that carry out each separated tasks. If organized well, a one-for-all utility can be set up. But for dynamics simulation, I hope you can take every step seriously, and entirely automate it only when it is guaranteed to be foolproof. With it, you will be freed from the tedious repetitive tasks, and can easily carry out a large amount of molecular dynamics simulations together.
 
 - Author: Haoyu Lin
-- E-mail: [vileoy@pku.edu.cn](mailto:vileoy@pku.edu.cn)
-- Repo: [vileoy/MDBot](https://github.com/vileoy/MDBot)
+- E-mail: [admin@fairy.dance](mailto:admin@fairy.dance)
+- Repo: [fairydance/MDBot](https://github.com/fairydance/MDBot)
 
 ## 1 Installation
 
@@ -28,7 +28,7 @@ Here only presents the tested version, and other versions may be also applicable
 Next execute the following commands to install it.
 
 ```shell
-$ git clone https://github.com/vileoy/MDBot.git
+$ git clone https://github.com/fairydance/MDBot.git
 $ cd MDBot
 $ chmod +x install.sh
 $ ./install.sh
