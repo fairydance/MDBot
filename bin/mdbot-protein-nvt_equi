@@ -34,4 +34,4 @@ end=$(date +%s)
 pass=$(echo "$end - $start" | bc)
 
 echo "NVT equilibration complete. Congratulations!"
-awk -v t=$SECONDS 'BEGIN{printf "Elapsed Time (HH:MM:SS): %d:%02d:%02d\n", t/3600%24, t/60%60, t%60}'
+awk -v t=$pass 'BEGIN{printf "Elapsed Time (HH:MM:SS): %d:%02d:%02d\n", t/3600%24, t/60%60, t%60}'
